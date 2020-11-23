@@ -19,12 +19,15 @@ func main() {
 	d := service.ReadSecuredModel(appmodel.History{})
 	g := InterfaceToSlice(d)
 	fmt.Println("output1:", g)
+
+	st := "new name"
+	id := 1
+	service.UpdateSecuredModel(appmodel.History{HistoryID: &id, CourseName: &st})
 }
 
 func InterfaceToSlice(slice interface{}) []interface{} {
 	s := reflect.ValueOf(slice).Elem()
 
-	fmt.Println(s.Kind())
 	if s.Kind() != reflect.Slice {
 		panic("InterfaceSlice() given a non-slice type")
 	}

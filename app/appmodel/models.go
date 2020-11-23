@@ -3,7 +3,7 @@ package appmodel
 import "time"
 
 type GeneralInformation struct {
-	GiID      *uint `gorm:"primary_key"`
+	GiID      *int `gorm:"primary_key"`
 	FirstName *string
 	LastName  *string
 	Email     *string
@@ -14,8 +14,8 @@ type GeneralInformation struct {
 }
 
 type History struct {
-	HistoryID   *uint              `gorm:"primary_key" perm:"history_id"`
-	GiID        *uint              `perm:"gi_id"`
+	HistoryID   *int               `gorm:"primary_key" perm:"history_id"`
+	GiID        *int               `perm:"gi_id"`
 	Gi          GeneralInformation `gorm:"foreignKey:GiID"`
 	CourseTime  *time.Time         `perm:"course_time"`
 	CourseName  *string            `perm:"course_name"`
@@ -23,16 +23,20 @@ type History struct {
 }
 
 type User struct {
-	UserID        *uint `gorm:"primary_key"`
+	UserID        *int `gorm:"primary_key"`
 	Username      *string
 	Password      *string
 	Email         *string
 	Gi            GeneralInformation `gorm:"foreignKey:Email"`
-	AccessGroupId *uint
+	AccessGroupId *int
 }
 
 func (history History) GetTableName() string {
 	return "histories"
+}
+
+func (history History) GetPKColumn() interface{} {
+	return history.HistoryID
 }
 
 func (history History) GetDal() interface{} {

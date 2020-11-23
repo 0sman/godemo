@@ -94,19 +94,38 @@ func ReadSecuredModel(secModel SecuredModel) interface{} {
 }
 
 func UpdateSecuredModel(secModel SecuredModel) {
-	//var ac = GetAllowedWriteColumns(secModel, 1)
+	var allowedColumns = GetAllowedWriteColumns(secModel, 1)
 
 	var tp = reflect.TypeOf(secModel.GetDal())
 	var rv = reflect.ValueOf(secModel.GetDal())
+
+	var mapToUpdate = make(map[string]interface{})
+
 	for i := 0; i < tp.NumField(); i++ {
-		if value, ok := tp.Field(i).Tag.Lookup("perm"); ok {
+		if clName, ok := tp.Field(i).Tag.Lookup("perm"); ok {
 			if ok {
-
-				fmt.Println("field:", rv.Field(i))
-				fmt.Println("value:", value)
+				fl := rv.Field(i)
+				if !fl.IsNil() {
+					var propValue = GetPropValue(fl)
+					mapToUpdate[clName] = propValue
+				}
 			}
-
 		}
+	}
+
+	var mapAllowedToUpdate = make(map[string]interface{})
+	for _, ac := range allowedColumns {
+		var value = mapToUpdate[ac]
+		if value != nil {
+			mapAllowedToUpdate[ac] = value
+		}
+	}
+
+	if len(mapAllowedToUpdate) == 0 {
+		fmt.Println("Check your update permissions")
+	} else {
+		pk := getPKColumn(secModel)
+		db.Table(secModel.GetTableName()).Where(pk).Updates(mapAllowedToUpdate)
 	}
 }
 
@@ -137,9 +156,24 @@ func getAllColumns(secModel SecuredModel) []string {
 	var tp = reflect.TypeOf(secModel.GetDal())
 	for i := 0; i < tp.NumField(); i++ {
 		if value, ok := tp.Field(i).Tag.Lookup("perm"); ok {
-			if ok {
-				fmt.Println(value)
-				res = append(res, value)
+			res = append(res, value)
+		}
+	}
+	return res
+}
+
+func getPKColumn(secModel SecuredModel) map[string]interface{} {
+	var res = make(map[string]interface{})
+	var tp = reflect.TypeOf(secModel.GetDal())
+	var rv = reflect.ValueOf(secModel.GetDal())
+	for i := 0; i < tp.NumField(); i++ {
+		if value, ok := tp.Field(i).Tag.Lookup("gorm"); ok {
+			if value == "primary_key" {
+				if value, ok := tp.Field(i).Tag.Lookup("perm"); ok {
+					var propValue = GetPropValue(rv.Field(i))
+					res[value] = propValue
+					return res
+				}
 			}
 		}
 	}
@@ -180,4 +214,24 @@ func checkPermission(permission int, table string, column string, row int) bool 
 
 	totalPermission |= pc.SecuredColumns[column]
 	return (totalPermission&permission > 0)
+}
+
+func GetPropValue(propValue reflect.Value) interface{} {
+	var val = propValue.Elem()
+	var res interface{}
+	switch val.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		res = val.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		res = val.Uint()
+	case reflect.String:
+		res = val.String()
+	case reflect.Bool:
+		res = val.Bool()
+	case reflect.Float32, reflect.Float64:
+		res = val.Float()
+	default:
+		res = val.String()
+	}
+	return res
 }
