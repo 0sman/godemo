@@ -29,7 +29,6 @@ func InterfaceToSlice(slice interface{}) []interface{} {
 		panic("InterfaceSlice() given a non-slice type")
 	}
 
-	// Keep the distinction between nil and empty slice input
 	if s.IsNil() {
 		return nil
 	}

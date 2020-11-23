@@ -31,9 +31,6 @@ type User struct {
 	AccessGroupId *uint
 }
 
-func (history History) GetAllColumns() []string {
-	return []string{"history_id", "gi_id", "course_time", "course_name", "course_score"}
-}
 func (history History) GetTableName() string {
 	return "histories"
 }

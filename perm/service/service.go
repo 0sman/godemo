@@ -82,7 +82,6 @@ func InitPermissions(userId int, groupId int, ownerGrId int) {
 
 type SecuredModel interface {
 	GetTableName() string
-	GetAllColumns() []string
 	GetDal() interface{}
 }
 
@@ -125,12 +124,26 @@ func GetAllowedCreateColumns(secModel SecuredModel, row int) []string {
 
 func getAllowedColumns(permission int, secModel SecuredModel, row int) []string {
 	var result []string
-	for _, cl := range secModel.GetAllColumns() {
+	for _, cl := range getAllColumns(secModel) {
 		if checkPermission(permission, secModel.GetTableName(), cl, row) == true {
 			result = append(result, cl)
 		}
 	}
 	return result
+}
+
+func getAllColumns(secModel SecuredModel) []string {
+	var res []string
+	var tp = reflect.TypeOf(secModel.GetDal())
+	for i := 0; i < tp.NumField(); i++ {
+		if value, ok := tp.Field(i).Tag.Lookup("perm"); ok {
+			if ok {
+				fmt.Println(value)
+				res = append(res, value)
+			}
+		}
+	}
+	return res
 }
 
 func CanRead(secModel SecuredModel, row int) bool {
@@ -146,7 +159,7 @@ func CanCreate(secModel SecuredModel, row int) bool {
 }
 
 func checkSecuredModel(permission int, secModel SecuredModel, row int) bool {
-	for _, clm := range secModel.GetAllColumns() {
+	for _, clm := range getAllColumns(secModel) {
 		if !checkPermission(PermissionRead, secModel.GetTableName(), clm, row) {
 			return false
 		}
