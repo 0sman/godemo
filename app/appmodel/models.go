@@ -1,16 +1,18 @@
 package appmodel
 
-import "time"
+import (
+	"time"
+)
 
 type GeneralInformation struct {
-	GiID      *int `gorm:"primary_key"`
-	FirstName *string
-	LastName  *string
-	Email     *string
-	Phone     *string
-	FinCode   *string
-	Position  *string
-	Education *string
+	GiID      *int    `gorm:"primary_key" perm:"gi_id"`
+	FirstName *string `perm:"first_name"`
+	LastName  *string `perm:"last_name"`
+	Email     *string `perm:"email"`
+	Phone     *string `perm:"phone"`
+	FinCode   *string `perm:"fin_code"`
+	Position  *string `perm:"position"`
+	Education *string `perm:"education"`
 }
 
 type History struct {
@@ -23,12 +25,20 @@ type History struct {
 }
 
 type User struct {
-	UserID        *int `gorm:"primary_key"`
-	Username      *string
-	Password      *string
-	Email         *string
+	UserID        *int               `gorm:"primary_key" perm:"user_id"`
+	Username      *string            `perm:"username"`
+	Password      *string            `perm:"password"`
+	Email         *string            `perm:"email"`
 	Gi            GeneralInformation `gorm:"foreignKey:Email"`
-	AccessGroupId *int
+	AccessGroupId *int               `perm:"access_group_id"`
+}
+
+func (gi GeneralInformation) GetTableName() string {
+	return "general_informations"
+}
+
+func (gi GeneralInformation) GetDal() interface{} {
+	return gi
 }
 
 func (history History) GetTableName() string {
@@ -39,6 +49,10 @@ func (history History) GetDal() interface{} {
 	return history
 }
 
-func (history History) TableName() string {
-	return "histories"
+func (user User) GetTableName() string {
+	return "users"
+}
+
+func (user User) GetDal() interface{} {
+	return user
 }

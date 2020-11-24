@@ -85,12 +85,30 @@ type SecuredModel interface {
 	GetDal() interface{}
 }
 
-func ReadSecuredModel(secModel SecuredModel) interface{} {
+func ReadSecuredModel(secModel SecuredModel) map[string]interface{} {
 	var ac = GetAllowedReadColumns(secModel, 1)
 	var tp = reflect.TypeOf(secModel.GetDal())
 	var results = reflect.New(reflect.SliceOf(tp)).Interface()
 	db.Select(ac).Table(secModel.GetTableName()).Find(results)
-	return results
+
+	var sl = interfaceToSlice(results)
+	var res = make(map[string]interface{})
+	for _, s := range sl {
+		var rv = reflect.ValueOf(s)
+		for i := 0; i < tp.NumField(); i++ {
+			fl := rv.Field(i)
+			if tagName, ok := tp.Field(i).Tag.Lookup("perm"); ok {
+				if fl.Kind() == reflect.Ptr {
+					if !fl.IsNil() {
+						var propValue = GetPropValue(fl)
+						res[tagName] = propValue
+					}
+				}
+			}
+		}
+	}
+
+	return res
 }
 
 func UpdateSecuredModel(id interface{}, secModel SecuredModel) {
@@ -180,24 +198,6 @@ func getAllColumns(secModel SecuredModel) []string {
 	return res
 }
 
-func getPKColumn(secModel SecuredModel) map[string]interface{} {
-	var res = make(map[string]interface{})
-	var tp = reflect.TypeOf(secModel.GetDal())
-	var rv = reflect.ValueOf(secModel.GetDal())
-	for i := 0; i < tp.NumField(); i++ {
-		if value, ok := tp.Field(i).Tag.Lookup("gorm"); ok {
-			if value == "primary_key" {
-				if value, ok := tp.Field(i).Tag.Lookup("perm"); ok {
-					var propValue = GetPropValue(rv.Field(i))
-					res[value] = propValue
-					return res
-				}
-			}
-		}
-	}
-	return res
-}
-
 func getPKColumnName(secModel SecuredModel) string {
 	var tp = reflect.TypeOf(secModel.GetDal())
 	for i := 0; i < tp.NumField(); i++ {
@@ -211,27 +211,6 @@ func getPKColumnName(secModel SecuredModel) string {
 		}
 	}
 	return ""
-}
-
-func CanRead(secModel SecuredModel, row int) bool {
-	return checkSecuredModel(PermissionRead, secModel, row)
-}
-
-func CanWrite(secModel SecuredModel, row int) bool {
-	return checkSecuredModel(PermissionWrite, secModel, row)
-}
-
-func CanCreate(secModel SecuredModel, row int) bool {
-	return checkSecuredModel(PermissionCreate, secModel, row)
-}
-
-func checkSecuredModel(permission int, secModel SecuredModel, row int) bool {
-	for _, clm := range getAllColumns(secModel) {
-		if !checkPermission(PermissionRead, secModel.GetTableName(), clm, row) {
-			return false
-		}
-	}
-	return true
 }
 
 func checkPermission(permission int, table string, column string, row int) bool {
@@ -249,6 +228,26 @@ func checkPermission(permission int, table string, column string, row int) bool 
 	return (totalPermission&permission > 0)
 }
 
+func interfaceToSlice(slice interface{}) []interface{} {
+	s := reflect.ValueOf(slice).Elem()
+
+	if s.Kind() != reflect.Slice {
+		panic("interfaceToSlice() given a non-slice type")
+	}
+
+	if s.IsNil() {
+		return nil
+	}
+
+	ret := make([]interface{}, s.Len())
+
+	for i := 0; i < s.Len(); i++ {
+		ret[i] = s.Index(i).Interface()
+	}
+
+	return ret
+}
+
 func GetPropValue(propValue reflect.Value) interface{} {
 	var val = propValue.Elem()
 	var res interface{}
@@ -264,7 +263,7 @@ func GetPropValue(propValue reflect.Value) interface{} {
 	case reflect.Float32, reflect.Float64:
 		res = val.Float()
 	default:
-		res = val.String()
+		res = propValue.Interface()
 	}
 	return res
 }

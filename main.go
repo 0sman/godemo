@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/0sman/godemo/app/appmodel"
 	"github.com/0sman/godemo/perm/service"
@@ -17,8 +16,7 @@ func main() {
 	service.InitPermissions(1, 1, 5)
 
 	d := service.ReadSecuredModel(appmodel.History{})
-	g := InterfaceToSlice(d)
-	fmt.Println("output1:", g)
+	fmt.Println("output:", d)
 
 	st := "new name"
 	id := 1
@@ -26,26 +24,6 @@ func main() {
 
 	stt := "new insert name"
 	service.CreateSecuredModel(appmodel.History{CourseName: &stt})
-}
-
-func InterfaceToSlice(slice interface{}) []interface{} {
-	s := reflect.ValueOf(slice).Elem()
-
-	if s.Kind() != reflect.Slice {
-		panic("InterfaceSlice() given a non-slice type")
-	}
-
-	if s.IsNil() {
-		return nil
-	}
-
-	ret := make([]interface{}, s.Len())
-
-	for i := 0; i < s.Len(); i++ {
-		ret[i] = s.Index(i).Interface()
-	}
-
-	return ret
 }
 
 func initDB() *gorm.DB {
