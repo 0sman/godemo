@@ -23,7 +23,7 @@ type Owner struct {
 
 type Group struct {
 	GroupId int `gorm:"primary_key"`
-	name    string
+	Name    string
 }
 
 type Permission struct {

@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/0sman/godemo/perm/dal"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 )
 
 var db *gorm.DB
@@ -93,40 +93,58 @@ func ReadSecuredModel(secModel SecuredModel) interface{} {
 	return results
 }
 
-func UpdateSecuredModel(secModel SecuredModel) {
+func UpdateSecuredModel(id interface{}, secModel SecuredModel) {
+	modelMap, ok := buildModelMap(secModel)
+	if ok {
+		pkName := getPKColumnName(secModel)
+		pkMap := make(map[string]interface{})
+		pkMap[pkName] = id
+		db.Table(secModel.GetTableName()).Where(pkMap).Updates(modelMap)
+	} else {
+		fmt.Println("Update is not allowed. Please, check your permissions.")
+	}
+}
+
+func CreateSecuredModel(secModel SecuredModel) {
+	modelMap, ok := buildModelMap(secModel)
+	if ok {
+		db.Table(secModel.GetTableName()).Create(modelMap)
+	} else {
+		fmt.Println("Create is not allowed. Please, check your permissions.")
+	}
+}
+
+func buildModelMap(secModel SecuredModel) (modelMap map[string]interface{}, ok bool) {
 	var allowedColumns = GetAllowedWriteColumns(secModel, 1)
 
 	var tp = reflect.TypeOf(secModel.GetDal())
 	var rv = reflect.ValueOf(secModel.GetDal())
 
-	var mapToUpdate = make(map[string]interface{})
+	modelMap = make(map[string]interface{})
 
 	for i := 0; i < tp.NumField(); i++ {
 		if clName, ok := tp.Field(i).Tag.Lookup("perm"); ok {
-			if ok {
-				fl := rv.Field(i)
-				if !fl.IsNil() {
-					var propValue = GetPropValue(fl)
-					mapToUpdate[clName] = propValue
+			fl := rv.Field(i)
+			if !fl.IsNil() {
+				if !isColumnInList(allowedColumns, clName) {
+					return nil, false
 				}
+				var propValue = GetPropValue(fl)
+				modelMap[clName] = propValue
 			}
 		}
 	}
 
-	var mapAllowedToUpdate = make(map[string]interface{})
-	for _, ac := range allowedColumns {
-		var value = mapToUpdate[ac]
-		if value != nil {
-			mapAllowedToUpdate[ac] = value
+	return modelMap, true
+}
+
+func isColumnInList(slice []string, target string) bool {
+	for _, ac := range slice {
+		if ac == target {
+			return true
 		}
 	}
-
-	if len(mapAllowedToUpdate) == 0 {
-		fmt.Println("Check your update permissions")
-	} else {
-		pk := getPKColumn(secModel)
-		db.Table(secModel.GetTableName()).Where(pk).Updates(mapAllowedToUpdate)
-	}
+	return false
 }
 
 func GetAllowedReadColumns(secModel SecuredModel, row int) []string {
@@ -178,6 +196,21 @@ func getPKColumn(secModel SecuredModel) map[string]interface{} {
 		}
 	}
 	return res
+}
+
+func getPKColumnName(secModel SecuredModel) string {
+	var tp = reflect.TypeOf(secModel.GetDal())
+	for i := 0; i < tp.NumField(); i++ {
+		tag := tp.Field(i).Tag
+		if value, ok := tag.Lookup("gorm"); ok {
+			if value == "primary_key" {
+				if value, ok := tag.Lookup("perm"); ok {
+					return value
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func CanRead(secModel SecuredModel, row int) bool {

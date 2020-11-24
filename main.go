@@ -6,13 +6,13 @@ import (
 
 	"github.com/0sman/godemo/app/appmodel"
 	"github.com/0sman/godemo/perm/service"
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 func main() {
 	var db = initDB()
-	db.LogMode(true)
+
 	service.InitService(db)
 	service.InitPermissions(1, 1, 5)
 
@@ -22,7 +22,10 @@ func main() {
 
 	st := "new name"
 	id := 1
-	service.UpdateSecuredModel(appmodel.History{HistoryID: &id, CourseName: &st})
+	service.UpdateSecuredModel(id, appmodel.History{CourseName: &st})
+
+	stt := "new insert name"
+	service.CreateSecuredModel(appmodel.History{CourseName: &stt})
 }
 
 func InterfaceToSlice(slice interface{}) []interface{} {
@@ -47,7 +50,7 @@ func InterfaceToSlice(slice interface{}) []interface{} {
 
 func initDB() *gorm.DB {
 	dataSourceName := "root:osman123@tcp(localhost:3306)/godemo?parseTime=True"
-	var db, err = gorm.Open("mysql", dataSourceName)
+	db, err := gorm.Open(mysql.Open(dataSourceName), &gorm.Config{})
 
 	if err != nil {
 		fmt.Println(err)

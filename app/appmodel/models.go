@@ -19,7 +19,7 @@ type History struct {
 	Gi          GeneralInformation `gorm:"foreignKey:GiID"`
 	CourseTime  *time.Time         `perm:"course_time"`
 	CourseName  *string            `perm:"course_name"`
-	CourseScore *float32           `perm:"course_score"`
+	CourseScore *float64           `perm:"course_score"`
 }
 
 type User struct {
@@ -35,10 +35,10 @@ func (history History) GetTableName() string {
 	return "histories"
 }
 
-func (history History) GetPKColumn() interface{} {
-	return history.HistoryID
-}
-
 func (history History) GetDal() interface{} {
 	return history
+}
+
+func (history History) TableName() string {
+	return "histories"
 }
