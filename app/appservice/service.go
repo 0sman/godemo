@@ -35,7 +35,7 @@ func ReadHistory(id int) (appmodel.History, error) {
 func UpdateHistory(id int, history appmodel.History) (appmodel.History, error) {
 	newID, err := service.UpdateSecuredModel(id, history)
 	if err == nil {
-		return ReadHistory(newID.(int))
+		return ReadHistory(int(newID.(int64)))
 	}
 	return appmodel.History{}, err
 }
@@ -43,7 +43,7 @@ func UpdateHistory(id int, history appmodel.History) (appmodel.History, error) {
 func CreateHistory(history appmodel.History) (appmodel.History, error) {
 	newID, err := service.CreateSecuredModel(history)
 	if err == nil {
-		return ReadHistory(newID.(int))
+		return ReadHistory(int(newID.(int64)))
 	}
 	return appmodel.History{}, err
 }
@@ -67,7 +67,7 @@ func ReadGeneralInformation(id int) (appmodel.GeneralInformation, error) {
 func UpdateGeneralInformation(id int, gi appmodel.GeneralInformation) (appmodel.GeneralInformation, error) {
 	newID, err := service.UpdateSecuredModel(id, gi)
 	if err == nil {
-		return ReadGeneralInformation(newID.(int))
+		return ReadGeneralInformation(int(newID.(int64)))
 	}
 	return appmodel.GeneralInformation{}, err
 }
@@ -75,7 +75,7 @@ func UpdateGeneralInformation(id int, gi appmodel.GeneralInformation) (appmodel.
 func CreateGeneralInformation(gi appmodel.GeneralInformation) (appmodel.GeneralInformation, error) {
 	newID, err := service.CreateSecuredModel(gi)
 	if err == nil {
-		return ReadGeneralInformation(newID.(int))
+		return ReadGeneralInformation(int(newID.(int64)))
 	}
 	return appmodel.GeneralInformation{}, err
 }
@@ -99,7 +99,7 @@ func ReadUser(id int) (appmodel.User, error) {
 func UpdateUser(id int, user appmodel.User) (appmodel.User, error) {
 	newID, err := service.UpdateSecuredModel(id, user)
 	if err == nil {
-		return ReadUser(newID.(int))
+		return ReadUser(int(newID.(int64)))
 	}
 	return appmodel.User{}, err
 }
@@ -107,7 +107,7 @@ func UpdateUser(id int, user appmodel.User) (appmodel.User, error) {
 func CreateUser(user appmodel.User) (appmodel.User, error) {
 	newID, err := service.CreateSecuredModel(user)
 	if err == nil {
-		return ReadUser(newID.(int))
+		return ReadUser(int(newID.(int64)))
 	}
 	return appmodel.User{}, err
 }

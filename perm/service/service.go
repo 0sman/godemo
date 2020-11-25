@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 
 	"github.com/0sman/godemo/perm/dal"
@@ -133,15 +132,23 @@ func UpdateSecuredModel(id interface{}, secModel SecuredModel) (interface{}, err
 
 func CreateSecuredModel(secModel SecuredModel) (interface{}, error) {
 	var ac = getAllowedCreateColumns(secModel, 1)
+	if len(ac) == 0 {
+		return nil, errors.New("Create is not allowed. Please, check your permissions")
+	}
+
+	var tp = reflect.TypeOf(secModel.GetDal())
+	var result = reflect.New(tp).Interface()
+
+	db.Table(secModel.GetTableName()).Create(result)
+	keyValue := getPKColumnValue(result.(SecuredModel))
+
 	modelMap, ok := buildModelMap(ac, secModel)
 	if ok {
 		pkName := getPKColumnName(secModel)
-		if _, ok := modelMap[pkName]; !ok {
-			modelMap[pkName] = 0
-		}
-		db.Table(secModel.GetTableName()).Create(modelMap)
-		fmt.Println("modelMap:", modelMap)
-		return modelMap[pkName], nil
+		pkMap := make(map[string]interface{})
+		pkMap[pkName] = keyValue
+		db.Table(secModel.GetTableName()).Where(pkMap).Updates(modelMap)
+		return pkMap[pkName], nil
 	}
 	return nil, errors.New("Create is not allowed. Please, check your permissions")
 }
@@ -208,6 +215,22 @@ func getAllColumns(secModel SecuredModel) []string {
 		}
 	}
 	return res
+}
+
+func getPKColumnValue(secModel SecuredModel) interface{} {
+	var tp = reflect.TypeOf(secModel.GetDal())
+	var rv = reflect.ValueOf(secModel.GetDal())
+	for i := 0; i < tp.NumField(); i++ {
+		if value, ok := tp.Field(i).Tag.Lookup("gorm"); ok {
+			if value == "primary_key" {
+				if _, ok := tp.Field(i).Tag.Lookup("perm"); ok {
+					var propValue = getPropValue(rv.Field(i))
+					return propValue
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func getPKColumnName(secModel SecuredModel) string {
