@@ -1,54 +1,44 @@
 package main
 
 import (
-	"fmt"
+	"net/http"
 
-	"github.com/0sman/godemo/app/appmodel"
-	"github.com/0sman/godemo/perm/service"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+	"github.com/0sman/godemo/app/controller"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	var db = initDB()
 
-	service.InitService(db)
-	service.InitPermissions(1, 1, 5)
+	r := gin.Default()
 
-	d := service.ReadSecuredModel(appmodel.History{})
-	fmt.Println("output:", d)
+	controller.InitConttroller()
 
-	st := "new name"
-	id := 1
-	service.UpdateSecuredModel(id, appmodel.History{CourseName: &st})
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"data": "hello world"})
+	})
 
-	stt := "new insert name"
-	service.CreateSecuredModel(appmodel.History{CourseName: &stt})
-}
+	r.GET("/histories", controller.FindHistories)
+	r.PUT("/histories/:id", controller.UpdateHistory)
+	r.POST("/histories", controller.CreateHistory)
 
-func initDB() *gorm.DB {
-	dataSourceName := "root:osman123@tcp(localhost:3306)/godemo?parseTime=True"
-	db, err := gorm.Open(mysql.Open(dataSourceName), &gorm.Config{})
+	r.GET("/gi", controller.FindGeneralInformations)
+	r.PUT("/gi/:id", controller.UpdateGeneralInformation)
+	r.POST("/gi", controller.CreateGeneralInformation)
 
-	if err != nil {
-		fmt.Println(err)
-		panic("failed to connect database")
-	}
+	r.GET("/users", controller.FindUsers)
+	r.PUT("/users/:id", controller.UpdateUser)
+	r.POST("/users", controller.CreateUser)
 
-	// db.Exec("CREATE DATABASE godemo")
-	// db.Exec("USE godemo")
+	r.Run()
 
-	/* db.AutoMigrate(
-		&appmodel.GeneralInformation{},
-		&appmodel.History{},
-		&appmodel.User{})
+	/*	d := service.ReadSecuredModel(appmodel.History{})
+		fmt.Println("output:", d)
 
-	db.AutoMigrate(
-		&dal.Object{},
-		&dal.Owner{},
-		&dal.Column{},
-		&dal.Group{},
-		&dal.Permission{})  */
+		st := "new name"
+		id := 1
+		service.UpdateSecuredModel(id, appmodel.History{CourseName: &st})
 
-	return db
+		stt := "new insert name"
+		service.CreateSecuredModel(appmodel.History{CourseName: &stt})
+	*/
 }

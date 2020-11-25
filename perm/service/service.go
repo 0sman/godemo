@@ -85,15 +85,17 @@ type SecuredModel interface {
 	GetDal() interface{}
 }
 
-func ReadSecuredModel(secModel SecuredModel) map[string]interface{} {
+func ReadSecuredModel(secModel SecuredModel) []map[string]interface{} {
 	var ac = GetAllowedReadColumns(secModel, 1)
 	var tp = reflect.TypeOf(secModel.GetDal())
 	var results = reflect.New(reflect.SliceOf(tp)).Interface()
 	db.Select(ac).Table(secModel.GetTableName()).Find(results)
 
 	var sl = interfaceToSlice(results)
-	var res = make(map[string]interface{})
+	var res []map[string]interface{}
+
 	for _, s := range sl {
+		var mp = make(map[string]interface{})
 		var rv = reflect.ValueOf(s)
 		for i := 0; i < tp.NumField(); i++ {
 			fl := rv.Field(i)
@@ -101,11 +103,12 @@ func ReadSecuredModel(secModel SecuredModel) map[string]interface{} {
 				if fl.Kind() == reflect.Ptr {
 					if !fl.IsNil() {
 						var propValue = GetPropValue(fl)
-						res[tagName] = propValue
+						mp[tagName] = propValue
 					}
 				}
 			}
 		}
+		res = append(res, mp)
 	}
 
 	return res
