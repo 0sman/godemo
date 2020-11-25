@@ -91,7 +91,7 @@ func ReadAllSecuredModels(secModel SecuredModel) ([]map[string]interface{}, erro
 		return nil, errors.New("Read is not allowed. Please, check your permissions")
 	}
 
-	var tp = reflect.TypeOf(secModel.GetDal())
+	var tp = reflect.TypeOf(secModel)
 	var results = reflect.New(reflect.SliceOf(tp)).Interface()
 	db.Select(ac).Table(secModel.GetTableName()).Find(results)
 
@@ -112,7 +112,7 @@ func ReadSecuredModel(id interface{}, secModel SecuredModel) (map[string]interfa
 		return nil, errors.New("Read is not allowed. Please, check your permissions")
 	}
 
-	var tp = reflect.TypeOf(secModel.GetDal())
+	var tp = reflect.TypeOf(secModel)
 	var result = reflect.New(tp).Interface()
 
 	pkName := getPKColumnName(secModel)
@@ -148,7 +148,7 @@ func CreateSecuredModel(secModel SecuredModel) (interface{}, error) {
 		return nil, errors.New("Create is not allowed. Please, check your permissions")
 	}
 
-	var tp = reflect.TypeOf(secModel.GetDal())
+	var tp = reflect.TypeOf(secModel)
 	var result = reflect.New(tp).Interface()
 
 	db.Table(secModel.GetTableName()).Create(result)
@@ -166,8 +166,8 @@ func CreateSecuredModel(secModel SecuredModel) (interface{}, error) {
 }
 
 func buildModelMap(allowedColumns []string, secModel SecuredModel) (modelMap map[string]interface{}, ok bool) {
-	var tp = reflect.TypeOf(secModel.GetDal())
-	var rv = reflect.ValueOf(secModel.GetDal())
+	var tp = reflect.TypeOf(secModel)
+	var rv = reflect.ValueOf(secModel)
 
 	modelMap = make(map[string]interface{})
 
@@ -220,7 +220,7 @@ func getAllowedColumns(permission int, secModel SecuredModel, row int) []string 
 
 func getAllColumns(secModel SecuredModel) []string {
 	var res []string
-	var tp = reflect.TypeOf(secModel.GetDal())
+	var tp = reflect.TypeOf(secModel)
 	for i := 0; i < tp.NumField(); i++ {
 		if value, ok := tp.Field(i).Tag.Lookup("perm"); ok {
 			res = append(res, value)
@@ -246,7 +246,7 @@ func getPKColumnValue(secModel SecuredModel) interface{} {
 }
 
 func getPKColumnName(secModel SecuredModel) string {
-	var tp = reflect.TypeOf(secModel.GetDal())
+	var tp = reflect.TypeOf(secModel)
 	for i := 0; i < tp.NumField(); i++ {
 		tag := tp.Field(i).Tag
 		if value, ok := tag.Lookup("gorm"); ok {

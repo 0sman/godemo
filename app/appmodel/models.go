@@ -37,20 +37,20 @@ func (gi GeneralInformation) GetTableName() string {
 	return "general_informations"
 }
 
-func (gi GeneralInformation) GetDal() interface{} {
-	return gi
-}
-
 func (history History) GetTableName() string {
 	return "histories"
 }
 
-func (history History) GetDal() interface{} {
-	return history
-}
-
 func (user User) GetTableName() string {
 	return "users"
+}
+
+func (gi GeneralInformation) GetDal() interface{} {
+	return gi
+}
+
+func (history History) GetDal() interface{} {
+	return history
 }
 
 func (user User) GetDal() interface{} {

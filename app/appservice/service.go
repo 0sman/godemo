@@ -38,7 +38,7 @@ func ReadHistory(id int) (appmodel.History, error) {
 func UpdateHistory(id int, history appmodel.History) (appmodel.History, error) {
 	newID, err := service.UpdateSecuredModel(id, history)
 	if err == nil {
-		return ReadHistory(int(newID.(int64)))
+		return ReadHistory(newID.(int))
 	}
 	return appmodel.History{}, err
 }
@@ -73,7 +73,7 @@ func ReadGeneralInformation(id int) (appmodel.GeneralInformation, error) {
 func UpdateGeneralInformation(id int, gi appmodel.GeneralInformation) (appmodel.GeneralInformation, error) {
 	newID, err := service.UpdateSecuredModel(id, gi)
 	if err == nil {
-		return ReadGeneralInformation(int(newID.(int64)))
+		return ReadGeneralInformation(newID.(int))
 	}
 	return appmodel.GeneralInformation{}, err
 }
@@ -108,7 +108,7 @@ func ReadUser(id int) (appmodel.User, error) {
 func UpdateUser(id int, user appmodel.User) (appmodel.User, error) {
 	newID, err := service.UpdateSecuredModel(id, user)
 	if err == nil {
-		return ReadUser(int(newID.(int64)))
+		return ReadUser(newID.(int))
 	}
 	return appmodel.User{}, err
 }
