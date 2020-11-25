@@ -85,8 +85,12 @@ type SecuredModel interface {
 	GetDal() interface{}
 }
 
-func ReadAllSecuredModels(secModel SecuredModel) []map[string]interface{} {
+func ReadAllSecuredModels(secModel SecuredModel) ([]map[string]interface{}, error) {
 	var ac = getAllowedReadColumns(secModel, 1)
+	if len(ac) == 0 {
+		return nil, errors.New("Read is not allowed. Please, check your permissions")
+	}
+
 	var tp = reflect.TypeOf(secModel.GetDal())
 	var results = reflect.New(reflect.SliceOf(tp)).Interface()
 	db.Select(ac).Table(secModel.GetTableName()).Find(results)
@@ -99,11 +103,15 @@ func ReadAllSecuredModels(secModel SecuredModel) []map[string]interface{} {
 		res = append(res, mp)
 	}
 
-	return res
+	return res, nil
 }
 
-func ReadSecuredModel(id interface{}, secModel SecuredModel) map[string]interface{} {
+func ReadSecuredModel(id interface{}, secModel SecuredModel) (map[string]interface{}, error) {
 	var ac = getAllowedReadColumns(secModel, 1)
+	if len(ac) == 0 {
+		return nil, errors.New("Read is not allowed. Please, check your permissions")
+	}
+
 	var tp = reflect.TypeOf(secModel.GetDal())
 	var result = reflect.New(tp).Interface()
 
@@ -114,11 +122,15 @@ func ReadSecuredModel(id interface{}, secModel SecuredModel) map[string]interfac
 	db.Select(ac).Table(secModel.GetTableName()).Where(pkMap).Take(result)
 
 	res := toModelMap(result, tp)
-	return res
+	return res, nil
 }
 
 func UpdateSecuredModel(id interface{}, secModel SecuredModel) (interface{}, error) {
 	var ac = getAllowedWriteColumns(secModel, 1)
+	if len(ac) == 0 {
+		return nil, errors.New("Update is not allowed. Please, check your permissions")
+	}
+
 	modelMap, ok := buildModelMap(ac, secModel)
 	if ok {
 		pkName := getPKColumnName(secModel)

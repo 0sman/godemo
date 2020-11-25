@@ -17,7 +17,7 @@ func InitService(dbRef *gorm.DB) {
 }
 
 func ReadAllHistories() []appmodel.History {
-	var histMapList = service.ReadAllSecuredModels(appmodel.History{})
+	var histMapList, _ = service.ReadAllSecuredModels(appmodel.History{})
 	var histories []appmodel.History
 	for _, m := range histMapList {
 		hist, _ := historyFromMap(m)
@@ -27,9 +27,12 @@ func ReadAllHistories() []appmodel.History {
 }
 
 func ReadHistory(id int) (appmodel.History, error) {
-	var histMap = service.ReadSecuredModel(id, appmodel.History{})
-	var history, err = historyFromMap(histMap)
-	return history, err
+	var histMap, err = service.ReadSecuredModel(id, appmodel.History{})
+	if err == nil {
+		var history, er = historyFromMap(histMap)
+		return history, er
+	}
+	return appmodel.History{}, err
 }
 
 func UpdateHistory(id int, history appmodel.History) (appmodel.History, error) {
@@ -49,7 +52,7 @@ func CreateHistory(history appmodel.History) (appmodel.History, error) {
 }
 
 func ReadAllGeneralInformations() []appmodel.GeneralInformation {
-	var giMapList = service.ReadAllSecuredModels(appmodel.GeneralInformation{})
+	var giMapList, _ = service.ReadAllSecuredModels(appmodel.GeneralInformation{})
 	var generalInformations []appmodel.GeneralInformation
 	for _, m := range giMapList {
 		gi, _ := generalInformationFromMap(m)
@@ -59,9 +62,12 @@ func ReadAllGeneralInformations() []appmodel.GeneralInformation {
 }
 
 func ReadGeneralInformation(id int) (appmodel.GeneralInformation, error) {
-	var giMap = service.ReadSecuredModel(id, appmodel.GeneralInformation{})
-	var gi, err = generalInformationFromMap(giMap)
-	return gi, err
+	var giMap, err = service.ReadSecuredModel(id, appmodel.GeneralInformation{})
+	if err == nil {
+		var gi, er = generalInformationFromMap(giMap)
+		return gi, er
+	}
+	return appmodel.GeneralInformation{}, err
 }
 
 func UpdateGeneralInformation(id int, gi appmodel.GeneralInformation) (appmodel.GeneralInformation, error) {
@@ -81,7 +87,7 @@ func CreateGeneralInformation(gi appmodel.GeneralInformation) (appmodel.GeneralI
 }
 
 func ReaAlldUsers() []appmodel.User {
-	var userMapList = service.ReadAllSecuredModels(appmodel.User{})
+	var userMapList, _ = service.ReadAllSecuredModels(appmodel.User{})
 	var users []appmodel.User
 	for _, m := range userMapList {
 		u, _ := userFromMap(m)
@@ -91,9 +97,12 @@ func ReaAlldUsers() []appmodel.User {
 }
 
 func ReadUser(id int) (appmodel.User, error) {
-	var userMap = service.ReadSecuredModel(id, appmodel.User{})
-	var user, err = userFromMap(userMap)
-	return user, err
+	var userMap, err = service.ReadSecuredModel(id, appmodel.User{})
+	if err == nil {
+		var user, er = userFromMap(userMap)
+		return user, er
+	}
+	return appmodel.User{}, err
 }
 
 func UpdateUser(id int, user appmodel.User) (appmodel.User, error) {
