@@ -2,6 +2,8 @@ package appservice
 
 import (
 	"errors"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/0sman/godemo/app/appmodel"
@@ -12,6 +14,7 @@ import (
 var db *gorm.DB
 
 func InitService(dbRef *gorm.DB) {
+	db = dbRef
 	service.InitService(dbRef)
 	service.InitPermissions(1, 1, 5)
 }
@@ -119,6 +122,52 @@ func CreateUser(user appmodel.User) (appmodel.User, error) {
 		return ReadUser(int(newID.(int64)))
 	}
 	return appmodel.User{}, err
+}
+
+func AuthUser(um appmodel.User) (string, error) {
+	user := appmodel.User{}
+	db.Where("username = ? and password = ?", um.Username, um.Password).Take(&user)
+	if user.UserID != nil && user.AccessGroupId != nil {
+		uid := *user.UserID
+		gid := *user.AccessGroupId
+		//ids in plain text as 'session'
+		session := strings.Join([]string{strconv.Itoa(uid), strconv.Itoa(gid)}, "-")
+		return session, nil
+	}
+	return "", nil
+}
+
+func ValidateSession(session string) error {
+	uid, grid, err := parseSession(session)
+	owGrid := getOwnerGroupId()
+	guestGrid := getGuestGroupId()
+	if err != nil {
+		grid = guestGrid //login as guest
+	}
+
+	service.InitPermissions(uid, grid, owGrid)
+	return err
+}
+
+func parseSession(session string) (int, int, error) {
+	ids := strings.Split(session, "-")
+	if len(ids) == 2 {
+		userID, err1 := strconv.Atoi(ids[0])
+		groupID, err2 := strconv.Atoi(ids[1])
+		if err1 == nil && err2 == nil {
+			return userID, groupID, nil
+		}
+		return -1, -1, errors.New("invalid session")
+	}
+	return -1, -1, errors.New("invalid session")
+}
+
+func getOwnerGroupId() int {
+	return 4
+}
+
+func getGuestGroupId() int {
+	return 5
 }
 
 func historyFromMap(m map[string]interface{}) (appmodel.History, error) {

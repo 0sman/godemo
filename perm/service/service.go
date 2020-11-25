@@ -86,7 +86,7 @@ type SecuredModel interface {
 }
 
 func ReadAllSecuredModels(secModel SecuredModel) ([]map[string]interface{}, error) {
-	var ac = getAllowedReadColumns(secModel, 1)
+	var ac = getAllowedReadColumns(secModel)
 	if len(ac) == 0 {
 		return nil, errors.New("Read is not allowed. Please, check your permissions")
 	}
@@ -107,7 +107,7 @@ func ReadAllSecuredModels(secModel SecuredModel) ([]map[string]interface{}, erro
 }
 
 func ReadSecuredModel(id interface{}, secModel SecuredModel) (map[string]interface{}, error) {
-	var ac = getAllowedReadColumns(secModel, 1)
+	var ac = getAllowedReadColumns(secModel)
 	if len(ac) == 0 {
 		return nil, errors.New("Read is not allowed. Please, check your permissions")
 	}
@@ -126,7 +126,7 @@ func ReadSecuredModel(id interface{}, secModel SecuredModel) (map[string]interfa
 }
 
 func UpdateSecuredModel(id interface{}, secModel SecuredModel) (interface{}, error) {
-	var ac = getAllowedWriteColumns(secModel, 1)
+	var ac = getAllowedWriteColumns(secModel)
 	if len(ac) == 0 {
 		return nil, errors.New("Update is not allowed. Please, check your permissions")
 	}
@@ -143,7 +143,7 @@ func UpdateSecuredModel(id interface{}, secModel SecuredModel) (interface{}, err
 }
 
 func CreateSecuredModel(secModel SecuredModel) (interface{}, error) {
-	var ac = getAllowedCreateColumns(secModel, 1)
+	var ac = getAllowedCreateColumns(secModel)
 	if len(ac) == 0 {
 		return nil, errors.New("Create is not allowed. Please, check your permissions")
 	}
@@ -196,22 +196,22 @@ func isColumnInList(slice []string, target string) bool {
 	return false
 }
 
-func getAllowedReadColumns(secModel SecuredModel, row int) []string {
-	return getAllowedColumns(PermissionRead, secModel, row)
+func getAllowedReadColumns(secModel SecuredModel) []string {
+	return getAllowedColumns(PermissionRead, secModel)
 }
 
-func getAllowedWriteColumns(secModel SecuredModel, row int) []string {
-	return getAllowedColumns(PermissionWrite, secModel, row)
+func getAllowedWriteColumns(secModel SecuredModel) []string {
+	return getAllowedColumns(PermissionWrite, secModel)
 }
 
-func getAllowedCreateColumns(secModel SecuredModel, row int) []string {
-	return getAllowedColumns(PermissionCreate, secModel, row)
+func getAllowedCreateColumns(secModel SecuredModel) []string {
+	return getAllowedColumns(PermissionCreate, secModel)
 }
 
-func getAllowedColumns(permission int, secModel SecuredModel, row int) []string {
+func getAllowedColumns(permission int, secModel SecuredModel) []string {
 	var result []string
 	for _, cl := range getAllColumns(secModel) {
-		if checkPermission(permission, secModel.GetTableName(), cl, row) == true {
+		if checkPermission(permission, secModel.GetTableName(), cl) == true {
 			result = append(result, cl)
 		}
 	}
@@ -260,16 +260,16 @@ func getPKColumnName(secModel SecuredModel) string {
 	return ""
 }
 
-func checkPermission(permission int, table string, column string, row int) bool {
+func checkPermission(permission int, table string, column string) bool {
 	pc := permMap[table]
 
 	var totalPermission int
 
-	for _, v := range pc.OwnedRowIds {
+	/*	for _, v := range pc.OwnedRowIds {
 		if v == row { // owner
 			totalPermission |= pc.SecuredOwnedColumns[column]
 		}
-	}
+	} */
 
 	totalPermission |= pc.SecuredColumns[column]
 	return (totalPermission&permission > 0)

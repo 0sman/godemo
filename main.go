@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/0sman/godemo/app/controller"
 	"github.com/gin-gonic/gin"
 )
@@ -10,11 +8,7 @@ import (
 func main() {
 	r := gin.Default()
 
-	controller.InitConttroller()
-
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"data": "hello world"})
-	})
+	controller.InitController()
 
 	r.GET("/histories", controller.FindAllHistories)
 	r.GET("/histories/:id", controller.FindHistory)
@@ -30,6 +24,8 @@ func main() {
 	r.GET("/users/:id", controller.FindUser)
 	r.PUT("/users/:id", controller.UpdateUser)
 	r.POST("/users", controller.CreateUser)
+
+	r.POST("/auth", controller.AuthUser)
 
 	r.Run()
 }
