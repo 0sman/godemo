@@ -1,6 +1,7 @@
 package appservice
 
 import (
+	"errors"
 	"time"
 
 	"github.com/0sman/godemo/app/appmodel"
@@ -15,61 +16,106 @@ func InitService(dbRef *gorm.DB) {
 	service.InitPermissions(1, 1, 5)
 }
 
-func ReadHistories() []appmodel.History {
-	var histMapList = service.ReadSecuredModel(appmodel.History{})
+func ReadAllHistories() []appmodel.History {
+	var histMapList = service.ReadAllSecuredModels(appmodel.History{})
 	var histories []appmodel.History
 	for _, m := range histMapList {
-		hist := historyFromMap(m)
+		hist, _ := historyFromMap(m)
 		histories = append(histories, hist)
 	}
 	return histories
 }
 
-func UpdateHistory(id int, history appmodel.History) {
-	service.UpdateSecuredModel(id, history)
+func ReadHistory(id int) (appmodel.History, error) {
+	var histMap = service.ReadSecuredModel(id, appmodel.History{})
+	var history, err = historyFromMap(histMap)
+	return history, err
 }
 
-func CreateHistory(history appmodel.History) {
-	service.CreateSecuredModel(history)
+func UpdateHistory(id int, history appmodel.History) (appmodel.History, error) {
+	newID, err := service.UpdateSecuredModel(id, history)
+	if err == nil {
+		return ReadHistory(newID.(int))
+	}
+	return appmodel.History{}, err
 }
 
-func ReadGeneralInformations() []appmodel.GeneralInformation {
-	var giMapList = service.ReadSecuredModel(appmodel.GeneralInformation{})
+func CreateHistory(history appmodel.History) (appmodel.History, error) {
+	newID, err := service.CreateSecuredModel(history)
+	if err == nil {
+		return ReadHistory(newID.(int))
+	}
+	return appmodel.History{}, err
+}
+
+func ReadAllGeneralInformations() []appmodel.GeneralInformation {
+	var giMapList = service.ReadAllSecuredModels(appmodel.GeneralInformation{})
 	var generalInformations []appmodel.GeneralInformation
 	for _, m := range giMapList {
-		gi := generalInformationFromMap(m)
+		gi, _ := generalInformationFromMap(m)
 		generalInformations = append(generalInformations, gi)
 	}
 	return generalInformations
 }
 
-func UpdateGeneralInformation(id int, gi appmodel.GeneralInformation) {
-	service.UpdateSecuredModel(id, gi)
+func ReadGeneralInformation(id int) (appmodel.GeneralInformation, error) {
+	var giMap = service.ReadSecuredModel(id, appmodel.GeneralInformation{})
+	var gi, err = generalInformationFromMap(giMap)
+	return gi, err
 }
 
-func CreateGeneralInformation(gi appmodel.GeneralInformation) {
-	service.CreateSecuredModel(gi)
+func UpdateGeneralInformation(id int, gi appmodel.GeneralInformation) (appmodel.GeneralInformation, error) {
+	newID, err := service.UpdateSecuredModel(id, gi)
+	if err == nil {
+		return ReadGeneralInformation(newID.(int))
+	}
+	return appmodel.GeneralInformation{}, err
 }
 
-func ReadUsers() []appmodel.User {
-	var userMapList = service.ReadSecuredModel(appmodel.User{})
+func CreateGeneralInformation(gi appmodel.GeneralInformation) (appmodel.GeneralInformation, error) {
+	newID, err := service.CreateSecuredModel(gi)
+	if err == nil {
+		return ReadGeneralInformation(newID.(int))
+	}
+	return appmodel.GeneralInformation{}, err
+}
+
+func ReaAlldUsers() []appmodel.User {
+	var userMapList = service.ReadAllSecuredModels(appmodel.User{})
 	var users []appmodel.User
 	for _, m := range userMapList {
-		u := userFromMap(m)
+		u, _ := userFromMap(m)
 		users = append(users, u)
 	}
 	return users
 }
 
-func UpdateUser(id int, user appmodel.User) {
-	service.UpdateSecuredModel(id, user)
+func ReadUser(id int) (appmodel.User, error) {
+	var userMap = service.ReadSecuredModel(id, appmodel.User{})
+	var user, err = userFromMap(userMap)
+	return user, err
 }
 
-func CreateUser(user appmodel.User) {
-	service.CreateSecuredModel(user)
+func UpdateUser(id int, user appmodel.User) (appmodel.User, error) {
+	newID, err := service.UpdateSecuredModel(id, user)
+	if err == nil {
+		return ReadUser(newID.(int))
+	}
+	return appmodel.User{}, err
 }
 
-func historyFromMap(m map[string]interface{}) appmodel.History {
+func CreateUser(user appmodel.User) (appmodel.User, error) {
+	newID, err := service.CreateSecuredModel(user)
+	if err == nil {
+		return ReadUser(newID.(int))
+	}
+	return appmodel.User{}, err
+}
+
+func historyFromMap(m map[string]interface{}) (appmodel.History, error) {
+	if isMapNull(m) {
+		return appmodel.History{}, errors.New("Not found")
+	}
 	var ct *time.Time
 	if m["course_time"] != nil {
 		ct = m["course_time"].(*time.Time)
@@ -89,10 +135,14 @@ func historyFromMap(m map[string]interface{}) appmodel.History {
 		CourseScore: cs,
 	}
 
-	return hist
+	return hist, nil
 }
 
-func generalInformationFromMap(m map[string]interface{}) appmodel.GeneralInformation {
+func generalInformationFromMap(m map[string]interface{}) (appmodel.GeneralInformation, error) {
+	if isMapNull(m) {
+		return appmodel.GeneralInformation{}, errors.New("Not found")
+	}
+
 	gi := appmodel.GeneralInformation{
 		GiID:      getIntRefValue(m, "gi_id"),
 		FirstName: getStringRefValue(m, "first_name"),
@@ -104,10 +154,14 @@ func generalInformationFromMap(m map[string]interface{}) appmodel.GeneralInforma
 		Education: getStringRefValue(m, "education"),
 	}
 
-	return gi
+	return gi, nil
 }
 
-func userFromMap(m map[string]interface{}) appmodel.User {
+func userFromMap(m map[string]interface{}) (appmodel.User, error) {
+	if isMapNull(m) {
+		return appmodel.User{}, errors.New("Not found")
+	}
+
 	user := appmodel.User{
 		UserID:        getIntRefValue(m, "user_id"),
 		Username:      getStringRefValue(m, "username"),
@@ -116,7 +170,7 @@ func userFromMap(m map[string]interface{}) appmodel.User {
 		AccessGroupId: getIntRefValue(m, "access_group_id"),
 	}
 
-	return user
+	return user, nil
 }
 
 func getStringRefValue(m map[string]interface{}, key string) *string {
@@ -135,4 +189,15 @@ func getIntRefValue(m map[string]interface{}, key string) *int {
 		i = &v
 	}
 	return i
+}
+
+func isMapNull(m map[string]interface{}) bool {
+	var isNull = true
+	for k := range m {
+		if m[k] != nil {
+			isNull = false
+			break
+		}
+	}
+	return isNull
 }

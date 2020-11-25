@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -85,8 +86,8 @@ type SecuredModel interface {
 	GetDal() interface{}
 }
 
-func ReadSecuredModel(secModel SecuredModel) []map[string]interface{} {
-	var ac = GetAllowedReadColumns(secModel, 1)
+func ReadAllSecuredModels(secModel SecuredModel) []map[string]interface{} {
+	var ac = getAllowedReadColumns(secModel, 1)
 	var tp = reflect.TypeOf(secModel.GetDal())
 	var results = reflect.New(reflect.SliceOf(tp)).Interface()
 	db.Select(ac).Table(secModel.GetTableName()).Find(results)
@@ -95,49 +96,57 @@ func ReadSecuredModel(secModel SecuredModel) []map[string]interface{} {
 	var res []map[string]interface{}
 
 	for _, s := range sl {
-		var mp = make(map[string]interface{})
-		var rv = reflect.ValueOf(s)
-		for i := 0; i < tp.NumField(); i++ {
-			fl := rv.Field(i)
-			if tagName, ok := tp.Field(i).Tag.Lookup("perm"); ok {
-				if fl.Kind() == reflect.Ptr {
-					if !fl.IsNil() {
-						var propValue = GetPropValue(fl)
-						mp[tagName] = propValue
-					}
-				}
-			}
-		}
+		mp := toModelMap(s, tp)
 		res = append(res, mp)
 	}
 
 	return res
 }
 
-func UpdateSecuredModel(id interface{}, secModel SecuredModel) {
-	modelMap, ok := buildModelMap(secModel)
+func ReadSecuredModel(id interface{}, secModel SecuredModel) map[string]interface{} {
+	var ac = getAllowedReadColumns(secModel, 1)
+	var tp = reflect.TypeOf(secModel.GetDal())
+	var result = reflect.New(tp).Interface()
+
+	pkName := getPKColumnName(secModel)
+	pkMap := make(map[string]interface{})
+	pkMap[pkName] = id
+
+	db.Select(ac).Table(secModel.GetTableName()).Where(pkMap).Take(result)
+
+	res := toModelMap(result, tp)
+	return res
+}
+
+func UpdateSecuredModel(id interface{}, secModel SecuredModel) (interface{}, error) {
+	var ac = getAllowedWriteColumns(secModel, 1)
+	modelMap, ok := buildModelMap(ac, secModel)
 	if ok {
 		pkName := getPKColumnName(secModel)
 		pkMap := make(map[string]interface{})
 		pkMap[pkName] = id
 		db.Table(secModel.GetTableName()).Where(pkMap).Updates(modelMap)
-	} else {
-		fmt.Println("Update is not allowed. Please, check your permissions.")
+		return pkMap[pkName], nil
 	}
+	return nil, errors.New("Update is not allowed. Please, check your permissions")
 }
 
-func CreateSecuredModel(secModel SecuredModel) {
-	modelMap, ok := buildModelMap(secModel)
+func CreateSecuredModel(secModel SecuredModel) (interface{}, error) {
+	var ac = getAllowedCreateColumns(secModel, 1)
+	modelMap, ok := buildModelMap(ac, secModel)
 	if ok {
+		pkName := getPKColumnName(secModel)
+		if _, ok := modelMap[pkName]; !ok {
+			modelMap[pkName] = 0
+		}
 		db.Table(secModel.GetTableName()).Create(modelMap)
-	} else {
-		fmt.Println("Create is not allowed. Please, check your permissions.")
+		fmt.Println("modelMap:", modelMap)
+		return modelMap[pkName], nil
 	}
+	return nil, errors.New("Create is not allowed. Please, check your permissions")
 }
 
-func buildModelMap(secModel SecuredModel) (modelMap map[string]interface{}, ok bool) {
-	var allowedColumns = GetAllowedWriteColumns(secModel, 1)
-
+func buildModelMap(allowedColumns []string, secModel SecuredModel) (modelMap map[string]interface{}, ok bool) {
 	var tp = reflect.TypeOf(secModel.GetDal())
 	var rv = reflect.ValueOf(secModel.GetDal())
 
@@ -150,7 +159,7 @@ func buildModelMap(secModel SecuredModel) (modelMap map[string]interface{}, ok b
 				if !isColumnInList(allowedColumns, clName) {
 					return nil, false
 				}
-				var propValue = GetPropValue(fl)
+				var propValue = getPropValue(fl)
 				modelMap[clName] = propValue
 			}
 		}
@@ -168,15 +177,15 @@ func isColumnInList(slice []string, target string) bool {
 	return false
 }
 
-func GetAllowedReadColumns(secModel SecuredModel, row int) []string {
+func getAllowedReadColumns(secModel SecuredModel, row int) []string {
 	return getAllowedColumns(PermissionRead, secModel, row)
 }
 
-func GetAllowedWriteColumns(secModel SecuredModel, row int) []string {
+func getAllowedWriteColumns(secModel SecuredModel, row int) []string {
 	return getAllowedColumns(PermissionWrite, secModel, row)
 }
 
-func GetAllowedCreateColumns(secModel SecuredModel, row int) []string {
+func getAllowedCreateColumns(secModel SecuredModel, row int) []string {
 	return getAllowedColumns(PermissionCreate, secModel, row)
 }
 
@@ -251,7 +260,28 @@ func interfaceToSlice(slice interface{}) []interface{} {
 	return ret
 }
 
-func GetPropValue(propValue reflect.Value) interface{} {
+func toModelMap(sm interface{}, tp reflect.Type) map[string]interface{} {
+	var mp = make(map[string]interface{})
+	var rv = reflect.ValueOf(sm)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	for i := 0; i < tp.NumField(); i++ {
+		fl := rv.Field(i)
+		if tagName, ok := tp.Field(i).Tag.Lookup("perm"); ok {
+			if fl.Kind() == reflect.Ptr {
+				if !fl.IsNil() {
+					var propValue = getPropValue(fl)
+					mp[tagName] = propValue
+				}
+			}
+		}
+	}
+
+	return mp
+}
+
+func getPropValue(propValue reflect.Value) interface{} {
 	var val = propValue.Elem()
 	var res interface{}
 	switch val.Kind() {
