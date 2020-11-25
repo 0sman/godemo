@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/0sman/godemo/perm/dal"
@@ -25,7 +26,7 @@ func InitService(dbRef *gorm.DB) {
 
 const (
 	PermissionRead   int = 1
-	PermissionWrite  int = 2
+	PermissionUpdate int = 2
 	PermissionCreate int = 4
 )
 
@@ -86,30 +87,59 @@ type SecuredModel interface {
 }
 
 func ReadAllSecuredModels(secModel SecuredModel) ([]map[string]interface{}, error) {
-	var ac = getAllowedReadColumns(secModel)
+	var ac = getAllowedColumns(PermissionRead, secModel, false)
 	if len(ac) == 0 {
-		return nil, errors.New("Read is not allowed. Please, check your permissions")
+		return nil, errors.New("Read is not allowed")
+	}
+
+	pkName := getPKColumnName(secModel)
+	var userOwnRows []int
+
+	if !isColumnInList(ac, pkName) {
+		ac = append(ac, pkName)
 	}
 
 	var tp = reflect.TypeOf(secModel)
 	var results = reflect.New(reflect.SliceOf(tp)).Interface()
 	db.Select(ac).Table(secModel.GetTableName()).Find(results)
-
+	fmt.Println("ac:", ac)
 	var sl = interfaceToSlice(results)
 	var res []map[string]interface{}
 
 	for _, s := range sl {
 		mp := toModelMap(s, tp)
-		res = append(res, mp)
+		id := int(mp[pkName].(int64))
+
+		if checkRowForOwner(secModel.GetTableName(), id) {
+			userOwnRows = append(userOwnRows, id)
+		} else {
+			res = append(res, mp)
+		}
+	}
+
+	if len(userOwnRows) > 0 {
+		totalCl, err := getTotalAllowedColumns(PermissionRead, secModel)
+		if err != nil {
+			return nil, err
+		}
+
+		results = reflect.New(reflect.SliceOf(tp)).Interface()
+		db.Select(totalCl).Table(secModel.GetTableName()).Where(pkName, " IN ? ", userOwnRows).Find(results)
+		sl = interfaceToSlice(results)
+
+		for _, s := range sl {
+			mp := toModelMap(s, tp)
+			res = append(res, mp)
+		}
 	}
 
 	return res, nil
 }
 
 func ReadSecuredModel(id interface{}, secModel SecuredModel) (map[string]interface{}, error) {
-	var ac = getAllowedReadColumns(secModel)
-	if len(ac) == 0 {
-		return nil, errors.New("Read is not allowed. Please, check your permissions")
+	var ac, err = getTotalAllowedColumnsForRow(PermissionRead, secModel, id)
+	if err != nil {
+		return nil, err
 	}
 
 	var tp = reflect.TypeOf(secModel)
@@ -126,9 +156,9 @@ func ReadSecuredModel(id interface{}, secModel SecuredModel) (map[string]interfa
 }
 
 func UpdateSecuredModel(id interface{}, secModel SecuredModel) (interface{}, error) {
-	var ac = getAllowedWriteColumns(secModel)
-	if len(ac) == 0 {
-		return nil, errors.New("Update is not allowed. Please, check your permissions")
+	var ac, err = getTotalAllowedColumnsForRow(PermissionUpdate, secModel, id)
+	if err != nil {
+		return nil, err
 	}
 
 	modelMap, ok := buildModelMap(ac, secModel)
@@ -139,13 +169,13 @@ func UpdateSecuredModel(id interface{}, secModel SecuredModel) (interface{}, err
 		db.Table(secModel.GetTableName()).Where(pkMap).Updates(modelMap)
 		return pkMap[pkName], nil
 	}
-	return nil, errors.New("Update is not allowed. Please, check your permissions")
+	return nil, errors.New("Update is not allowed")
 }
 
-func CreateSecuredModel(secModel SecuredModel) (interface{}, error) {
-	var ac = getAllowedCreateColumns(secModel)
-	if len(ac) == 0 {
-		return nil, errors.New("Create is not allowed. Please, check your permissions")
+func CreateSecuredModel(secModel SecuredModel, userID int) (interface{}, error) {
+	var ac, err = getTotalAllowedColumns(PermissionCreate, secModel)
+	if err != nil {
+		return nil, err
 	}
 
 	var tp = reflect.TypeOf(secModel)
@@ -160,9 +190,23 @@ func CreateSecuredModel(secModel SecuredModel) (interface{}, error) {
 		pkMap := make(map[string]interface{})
 		pkMap[pkName] = keyValue
 		db.Table(secModel.GetTableName()).Where(pkMap).Updates(modelMap)
+		id := int(pkMap[pkName].(int64))
+		addOwnerForRow(secModel.GetTableName(), id, userID)
 		return pkMap[pkName], nil
 	}
-	return nil, errors.New("Create is not allowed. Please, check your permissions")
+	return nil, errors.New("Create is not allowed")
+}
+
+func addOwnerForRow(table string, row int, userID int) {
+	var obj dal.Object
+	db.Where(&dal.Object{Name: table}).First(&obj)
+
+	owner := dal.Owner{
+		ObjectId:  obj.ObjectId,
+		TargetRow: row,
+		UserId:    userID,
+	}
+	db.Create(&owner)
 }
 
 func buildModelMap(allowedColumns []string, secModel SecuredModel) (modelMap map[string]interface{}, ok bool) {
@@ -196,22 +240,35 @@ func isColumnInList(slice []string, target string) bool {
 	return false
 }
 
-func getAllowedReadColumns(secModel SecuredModel) []string {
-	return getAllowedColumns(PermissionRead, secModel)
+func getTotalAllowedColumnsForRow(permission int, secModel SecuredModel, id interface{}) ([]string, error) {
+	var ac = getAllowedColumns(permission, secModel, false)
+	if len(ac) == 0 {
+		return nil, fmt.Errorf("Permission %d is not allowed", permission)
+	}
+
+	//current implementation supports only int IDs
+	if checkRowForOwner(secModel.GetTableName(), id.(int)) {
+		var aoc = getAllowedColumns(permission, secModel, true)
+		ac = append(ac, aoc...)
+	}
+
+	return ac, nil
 }
 
-func getAllowedWriteColumns(secModel SecuredModel) []string {
-	return getAllowedColumns(PermissionWrite, secModel)
+func getTotalAllowedColumns(permission int, secModel SecuredModel) ([]string, error) {
+	var ac = getAllowedColumns(permission, secModel, false)
+	if len(ac) == 0 {
+		return nil, fmt.Errorf("Permission %d is not allowed", permission)
+	}
+	var aoc = getAllowedColumns(permission, secModel, true)
+	ac = append(ac, aoc...)
+	return ac, nil
 }
 
-func getAllowedCreateColumns(secModel SecuredModel) []string {
-	return getAllowedColumns(PermissionCreate, secModel)
-}
-
-func getAllowedColumns(permission int, secModel SecuredModel) []string {
+func getAllowedColumns(permission int, secModel SecuredModel, isOwner bool) []string {
 	var result []string
 	for _, cl := range getAllColumns(secModel) {
-		if checkPermission(permission, secModel.GetTableName(), cl) == true {
+		if checkPermission(permission, secModel.GetTableName(), cl, isOwner) == true {
 			result = append(result, cl)
 		}
 	}
@@ -260,19 +317,22 @@ func getPKColumnName(secModel SecuredModel) string {
 	return ""
 }
 
-func checkPermission(permission int, table string, column string) bool {
+func checkPermission(permission int, table string, column string, isOwner bool) bool {
 	pc := permMap[table]
+	if isOwner {
+		return (pc.SecuredOwnedColumns[column]&permission > 0)
+	}
+	return (pc.SecuredColumns[column]&permission > 0)
+}
 
-	var totalPermission int
-
-	/*	for _, v := range pc.OwnedRowIds {
-		if v == row { // owner
-			totalPermission |= pc.SecuredOwnedColumns[column]
+func checkRowForOwner(table string, row int) bool {
+	pc := permMap[table]
+	for _, v := range pc.OwnedRowIds {
+		if v == row {
+			return true
 		}
-	} */
-
-	totalPermission |= pc.SecuredColumns[column]
-	return (totalPermission&permission > 0)
+	}
+	return false
 }
 
 func interfaceToSlice(slice interface{}) []interface{} {

@@ -46,8 +46,8 @@ func UpdateHistory(id int, history appmodel.History) (appmodel.History, error) {
 	return appmodel.History{}, err
 }
 
-func CreateHistory(history appmodel.History) (appmodel.History, error) {
-	newID, err := service.CreateSecuredModel(history)
+func CreateHistory(history appmodel.History, userID int) (appmodel.History, error) {
+	newID, err := service.CreateSecuredModel(history, userID)
 	if err == nil {
 		return ReadHistory(int(newID.(int64)))
 	}
@@ -81,8 +81,8 @@ func UpdateGeneralInformation(id int, gi appmodel.GeneralInformation) (appmodel.
 	return appmodel.GeneralInformation{}, err
 }
 
-func CreateGeneralInformation(gi appmodel.GeneralInformation) (appmodel.GeneralInformation, error) {
-	newID, err := service.CreateSecuredModel(gi)
+func CreateGeneralInformation(gi appmodel.GeneralInformation, userID int) (appmodel.GeneralInformation, error) {
+	newID, err := service.CreateSecuredModel(gi, userID)
 	if err == nil {
 		return ReadGeneralInformation(int(newID.(int64)))
 	}
@@ -116,8 +116,8 @@ func UpdateUser(id int, user appmodel.User) (appmodel.User, error) {
 	return appmodel.User{}, err
 }
 
-func CreateUser(user appmodel.User) (appmodel.User, error) {
-	newID, err := service.CreateSecuredModel(user)
+func CreateUser(user appmodel.User, userID int) (appmodel.User, error) {
+	newID, err := service.CreateSecuredModel(user, userID)
 	if err == nil {
 		return ReadUser(int(newID.(int64)))
 	}
@@ -160,6 +160,11 @@ func parseSession(session string) (int, int, error) {
 		return -1, -1, errors.New("invalid session")
 	}
 	return -1, -1, errors.New("invalid session")
+}
+
+func GetUserId(token string) (int, error) {
+	userID, _, err := parseSession(token)
+	return userID, err
 }
 
 func getOwnerGroupId() int {

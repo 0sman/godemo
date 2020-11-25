@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -65,7 +66,7 @@ func FindHistory(c *gin.Context) {
 }
 
 func UpdateHistory(c *gin.Context) {
-	validateToken(c)
+	checkUserLogged(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 
 	var history appmodel.History
@@ -82,14 +83,14 @@ func UpdateHistory(c *gin.Context) {
 }
 
 func CreateHistory(c *gin.Context) {
-	validateToken(c)
+	userID := checkUserLogged(c)
 	var history appmodel.History
 	if err := c.ShouldBindJSON(&history); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	newHistory, err := appservice.CreateHistory(history)
+	newHistory, err := appservice.CreateHistory(history, userID)
 	if handleError(c, err) {
 		return
 	}
@@ -113,7 +114,7 @@ func FindGeneralInformation(c *gin.Context) {
 }
 
 func UpdateGeneralInformation(c *gin.Context) {
-	validateToken(c)
+	checkUserLogged(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 
 	var gi appmodel.GeneralInformation
@@ -130,14 +131,14 @@ func UpdateGeneralInformation(c *gin.Context) {
 }
 
 func CreateGeneralInformation(c *gin.Context) {
-	validateToken(c)
+	userID := checkUserLogged(c)
 	var gi appmodel.GeneralInformation
 	if err := c.ShouldBindJSON(&gi); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	newGi, err := appservice.CreateGeneralInformation(gi)
+	newGi, err := appservice.CreateGeneralInformation(gi, userID)
 	if handleError(c, err) {
 		return
 	}
@@ -161,7 +162,7 @@ func FindUser(c *gin.Context) {
 }
 
 func UpdateUser(c *gin.Context) {
-	validateToken(c)
+	checkUserLogged(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 
 	var user appmodel.User
@@ -178,14 +179,15 @@ func UpdateUser(c *gin.Context) {
 }
 
 func CreateUser(c *gin.Context) {
-	validateToken(c)
+	userID := checkUserLogged(c)
+
 	var user appmodel.User
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	newUser, err := appservice.CreateUser(user)
+	newUser, err := appservice.CreateUser(user, userID)
 	if handleError(c, err) {
 		return
 	}
@@ -215,11 +217,26 @@ func handleError(c *gin.Context, err error) bool {
 	return false
 }
 
-func validateToken(c *gin.Context) {
-	tk := c.Request.Header["Token"]
+func getToken(tk []string) string {
 	token := ""
 	if len(tk) > 0 {
 		token = tk[0]
 	}
+	return token
+}
+
+func checkUserLogged(c *gin.Context) int {
+	token := getToken(c.Request.Header["Token"])
+	err := appservice.ValidateSession(token)
+	if err != nil {
+		c.JSON(401, gin.H{"error": errors.New("Unauthorized")})
+	}
+
+	userID, _ := appservice.GetUserId(token)
+	return userID
+}
+
+func validateToken(c *gin.Context) {
+	token := getToken(c.Request.Header["Token"])
 	appservice.ValidateSession(token)
 }
