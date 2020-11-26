@@ -102,7 +102,7 @@ func ReadAllSecuredModels(secModel SecuredModel) ([]map[string]interface{}, erro
 	var tp = reflect.TypeOf(secModel)
 	var results = reflect.New(reflect.SliceOf(tp)).Interface()
 	db.Select(ac).Table(secModel.GetTableName()).Find(results)
-	fmt.Println("ac:", ac)
+
 	var sl = interfaceToSlice(results)
 	var res []map[string]interface{}
 
@@ -122,9 +122,8 @@ func ReadAllSecuredModels(secModel SecuredModel) ([]map[string]interface{}, erro
 		if err != nil {
 			return nil, err
 		}
-
 		results = reflect.New(reflect.SliceOf(tp)).Interface()
-		db.Select(totalCl).Table(secModel.GetTableName()).Where(pkName, " IN ? ", userOwnRows).Find(results)
+		db.Select(totalCl).Table(secModel.GetTableName()).Where(userOwnRows).Find(results)
 		sl = interfaceToSlice(results)
 
 		for _, s := range sl {
@@ -249,7 +248,11 @@ func getTotalAllowedColumnsForRow(permission int, secModel SecuredModel, id inte
 	//current implementation supports only int IDs
 	if checkRowForOwner(secModel.GetTableName(), id.(int)) {
 		var aoc = getAllowedColumns(permission, secModel, true)
-		ac = append(ac, aoc...)
+		for _, cl := range aoc {
+			if !isColumnInList(ac, cl) {
+				ac = append(ac, cl)
+			}
+		}
 	}
 
 	return ac, nil
@@ -261,7 +264,12 @@ func getTotalAllowedColumns(permission int, secModel SecuredModel) ([]string, er
 		return nil, fmt.Errorf("Permission %d is not allowed", permission)
 	}
 	var aoc = getAllowedColumns(permission, secModel, true)
-	ac = append(ac, aoc...)
+	for _, cl := range aoc {
+		if !isColumnInList(ac, cl) {
+			ac = append(ac, cl)
+		}
+	}
+
 	return ac, nil
 }
 
