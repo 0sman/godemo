@@ -15,7 +15,7 @@ import (
 )
 
 func initDB() *gorm.DB {
-	dataSourceName := "root:osman123@tcp(localhost:3306)/godemo?parseTime=True"
+	dataSourceName := "USER:PASSWORD@tcp(localhost:3306)/godemo?parseTime=True"
 	db, err := gorm.Open(mysql.Open(dataSourceName), &gorm.Config{})
 
 	if err != nil {
