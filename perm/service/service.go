@@ -95,7 +95,9 @@ func ReadAllSecuredModels(secModel SecuredModel) ([]map[string]interface{}, erro
 	pkName := getPKColumnName(secModel)
 	var userOwnRows []int
 
+	idAdded := false
 	if !isColumnInList(ac, pkName) {
+		idAdded = true
 		ac = append(ac, pkName)
 	}
 
@@ -113,6 +115,9 @@ func ReadAllSecuredModels(secModel SecuredModel) ([]map[string]interface{}, erro
 		if checkRowForOwner(secModel.GetTableName(), id) {
 			userOwnRows = append(userOwnRows, id)
 		} else {
+			if idAdded {
+				mp[pkName] = nil
+			}
 			res = append(res, mp)
 		}
 	}
